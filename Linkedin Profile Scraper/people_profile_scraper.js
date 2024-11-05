@@ -11,7 +11,7 @@ function delay(time) {
 async function getProfileData(profileLink) {
     const browser = await puppeteer.launch({
         args: ['--start-maximized', '--incognito', '--no-sandbox'],
-        headless: false,  
+        headless: true,  
         defaultViewport: null
     });
     const page = (await browser.pages())[0];
