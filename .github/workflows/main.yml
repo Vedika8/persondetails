@@ -1,49 +1,31 @@
-name: LinkedIn Profile Scraper
+name: Scraping Data
 
 on:
-  workflow_dispatch: 
-  schedule:
-    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 jobs:
-  scrape:
-    name: Scrape LinkedIn Profiles
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
+      
+      - name: Use Node.js
+        uses: actions/setup-node@v3
         with:
-          fetch-depth: 0
-          
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
+          node-version: '16.x'
           
       - name: Install dependencies
         run: |
-          npm install puppeteer@21.5.2
+          npm install puppeteer
           npm install fs path
           
-      - name: Run LinkedIn Scraper
+      - name: Execute script
         run: node people_profile_scraper.js
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
         
-      - name: Configure Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
       - name: Commit and Push Changes
         run: |
-          timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
           git add .
-          git commit -m "Update data and screenshots - ${timestamp}" || echo "No changes to commit"
-          git pull --rebase origin main
-          git push origin main || echo "No changes to push"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git commit -m "Auto commit"
+          git push
