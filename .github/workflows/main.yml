@@ -1,29 +1,49 @@
-name: Run Puppeteer Script
+name: LinkedIn Profile Scraper
 
 on:
-  workflow_dispatch:
-    inputs:
-      location:
-        description: 'Location parameter for the Puppeteer script'
-        required: true
+  workflow_dispatch: 
+  schedule:
+    - cron: "0 0 * * *"
 
 jobs:
-  run-puppeteer:
+  scrape:
+    name: Scrape LinkedIn Profiles
     runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '18'
-
-    - name: Install dependencies
-      run: npm install
-      working-directory: 'Linkedin Profile Scraper'
+    permissions:
+      contents: write
       
-    - name: Run Puppeteer script
-      run: node people_profile_scraper.js ${{ github.event.inputs.location }}
-      working-directory: 'Linkedin Profile Scraper'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: |
+          npm install puppeteer@21.5.2
+          npm install fs path
+          
+      - name: Run LinkedIn Scraper
+        run: node index.js
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+      - name: Commit and Push Changes
+        run: |
+          timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+          git add .
+          git commit -m "Update data and screenshots - ${timestamp}" || echo "No changes to commit"
+          git pull --rebase origin main
+          git push origin main || echo "No changes to push"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
