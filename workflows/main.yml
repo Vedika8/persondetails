@@ -1,0 +1,29 @@
+name: Run Puppeteer Script
+
+on:
+  workflow_dispatch:
+    inputs:
+      location:
+        description: 'Location parameter for the Puppeteer script'
+        required: true
+
+jobs:
+  run-puppeteer:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install
+      working-directory: 'Linkedin Profile Scraper'
+      
+    - name: Run Puppeteer script
+      run: node people_profile_scraper.js ${{ github.event.inputs.location }}
+      working-directory: 'Linkedin Profile Scraper'
