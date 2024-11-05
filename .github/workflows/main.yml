@@ -21,9 +21,7 @@ jobs:
         node-version: '18'
 
     - name: Install dependencies
-      run: |
-        npm install
-        npm install puppeteer-extra puppeteer-extra-plugin-stealth
+      run: npm install
       working-directory: 'Linkedin Profile Scraper'
       
     - name: Run Puppeteer script
