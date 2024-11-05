@@ -29,7 +29,7 @@ jobs:
           npm install fs path
           
       - name: Run LinkedIn Scraper
-        run: node index.js
+        run: node people_profile_scraper.js
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
         
