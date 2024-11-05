@@ -1,4 +1,6 @@
 const puppeteer = require('puppeteer');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 
 function delay(time) {
     return new Promise(function(resolve) { 
@@ -9,7 +11,7 @@ function delay(time) {
 async function getProfileData(profileLink) {
     const browser = await puppeteer.launch({
         args: ['--start-maximized', '--incognito', '--no-sandbox'],
-        headless: true,  // Make sure to use lowercase 'true'
+        headless: false,  
         defaultViewport: null
     });
     const page = (await browser.pages())[0];
@@ -17,10 +19,12 @@ async function getProfileData(profileLink) {
     let [name, location, about, experience, education, licensesCertifications, publications, languages, services, awards] = Array(10).fill('N/A');
 
     await page.goto(profileLink);
+    await delay(3000); // Wait 3 seconds
+
     console.log(profileLink);
 
     try {
-        await page.waitForSelector('h1.top-card-layout__title.font-sans.text-lg.papabear\\:text-xl.font-bold.leading-open.text-color-text.mb-0', { timeout: 10000 });
+        await page.waitForSelector('h1.top-card-layout__title.font-sans.text-lg.papabear\\:text-xl.font-bold.leading-open.text-color-text.mb-0', { timeout: 30000 });
         
         // Extract Name
         name = await page.$eval('h1.top-card-layout__title.font-sans.text-lg.papabear\\:text-xl.font-bold.leading-open.text-color-text.mb-0', el => el.textContent.trim()).catch(() => 'N/A');
