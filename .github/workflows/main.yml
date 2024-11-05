@@ -18,9 +18,11 @@ jobs:
         run: |
           npm install puppeteer
           npm install fs path
+        working-directory: 'Linkedin Profile Scraper'
           
       - name: Execute script
         run: node people_profile_scraper.js
+        working-directory: 'Linkedin Profile Scraper'
         
       - name: Commit and Push Changes
         run: |
