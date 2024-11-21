@@ -131,7 +131,7 @@ async function getProfileData(profileLink) {
         console.log('Headline:', headline);
         console.log('Location:', location);
         console.log('About:', about);
-        console.log('Experiences:', experiences);
+        console.log('Experiences:', experience);
 
         await browser.close();
 
@@ -140,7 +140,7 @@ async function getProfileData(profileLink) {
             'Headline': headline,
             'Location': location,
             'About': about,
-            'Experiences': experiences,
+            'Experiences': experience,
             'ProfileLink': profileLink
         };
 
