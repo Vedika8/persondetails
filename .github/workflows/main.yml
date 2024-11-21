@@ -1,33 +1,29 @@
-name: Scraping Data
 
+name: Person Deatils Scraping
 on:
   workflow_dispatch:
+    inputs:
+      location:
+        description: 'Location parameter for the Puppeteer script'
+        required: false
 
 jobs:
-  build:
+  run-puppeteer:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install
+      working-directory: 'Linkedin Profile Scraper'
       
-      - name: Use Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16.x'
-          
-      - name: Install dependencies
-        run: |
-          npm install puppeteer
-          npm install fs path
-        working-directory: 'Linkedin Profile Scraper'
-          
-      - name: Execute script
-        run: node people_profile_scraper.js
-        working-directory: 'Linkedin Profile Scraper'
-        
-      - name: Commit and Push Changes
-        run: |
-          git config --global user.name github-actions
-          git config --global user.email github-actions@github.com
-          git add .
-          git commit -m "Auto commit"
-          git push
+    - name: Run Puppeteer script
+      run: node people_profile_scarper.js ${{ github.event.inputs.location }}
+      working-directory: 'Linkedin Profile Scraper'
