@@ -9,138 +9,158 @@ function delay(time) {
 
 async function getProfileData(profileLink) {
     const browser = await puppeteer.launch({
-        args: ['--start-maximized', '--incognito', '--no-sandbox', '--disable-web-security'],
+        args: ['--start-maximized', '--incognito', '--no-sandbox', 
+               '--disable-setuid-sandbox', 
+               '--disable-dev-shm-usage',
+               '--disable-accelerated-2d-canvas',
+               '--no-first-run',
+               '--no-zygote',
+               '--single-process', // Recommended for some environments
+               '--disable-gpu'
+            ],
         headless: true,
         defaultViewport: null,
-        // Uncomment and configure if using a proxy
-        // browserWSEndpoint: `ws://${proxyServer}:${proxyPort}`
+        // Optional: proxy configuration
+        // browserWSEndpoint: `ws://${proxyIP}:${proxyPort}`
     });
+
     const page = (await browser.pages())[0];
 
-    // Optional: Add additional headers to mimic a real browser
+    // Sophisticated browser fingerprint management
     await page.setExtraHTTPHeaders({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-User': '?1',
+        'Sec-Fetch-Dest': 'document',
     });
 
-    let [name, headline, location, about, experience, education, licensesCertifications, publications, languages, services, awards] = Array(11).fill('N/A');
+    // Disable unnecessary resource types
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+        const resourceType = request.resourceType();
+        const blockedTypes = ['image', 'media', 'font', 'stylesheet'];
+        
+        if (blockedTypes.includes(resourceType)) {
+            request.abort();
+        } else {
+            request.continue();
+        }
+    });
 
     try {
-        console.log(`Attempting to navigate to: ${profileLink}`);
+        console.log(`Starting profile data extraction for: ${profileLink}`);
 
-        // Enhanced navigation settings
-        await page.setDefaultNavigationTimeout(45000);
-        
-        // Optional: Add authentication if required
-        // await page.authenticate({
-        //     username: 'your_linkedin_username',
-        //     password: 'your_linkedin_password'
-        // });
+        // Configure extended navigation timeout
+        await page.setDefaultNavigationTimeout(60000);
 
-        // Detailed network interception for debugging
-        await page.setRequestInterception(true);
-        page.on('request', (request) => {
-            // Optional: Log or modify requests
-            // console.log(`Intercepted Request: ${request.url()}`);
-            request.continue();
+        // Capture and log all network responses
+        const responseLogger = async (response) => {
+            try {
+                if (response.url().includes('linkedin.com')) {
+                    console.log(`Response URL: ${response.url()}`);
+                    console.log(`Response Status: ${response.status()}`);
+
+                    // Attempt to log response text for debugging
+                    try {
+                        const text = await response.text();
+                        fs.writeFileSync(`debug_response_${Date.now()}.html`, text);
+                        console.log('Response text logged');
+                    } catch (textError) {
+                        console.log('Could not read response text:', textError);
+                    }
+                }
+            } catch (logError) {
+                console.log('Error in response logging:', logError);
+            }
+        };
+        page.on('response', responseLogger);
+
+        // Navigate with comprehensive options
+        const response = await page.goto(profileLink, {
+            waitUntil: ['load', 'domcontentloaded', 'networkidle0'],
+            timeout: 60000
         });
 
-        // Navigate to the page
-        const response = await page.goto(profileLink, { 
-            waitUntil: 'networkidle2',
-            timeout: 45000 
+        // Comprehensive page load verification
+        console.log(`Navigation Status: ${response ? response.status() : 'No response'}`);
+
+        // Advanced page readiness check
+        await page.evaluate(() => {
+            return new Promise((resolve) => {
+                // Wait for potential dynamic content
+                setTimeout(resolve, 10000);
+            });
         });
 
-        // Extensive logging
-        console.log(`Page Status: ${response ? response.status() : 'No response'}`);
-
-        // Wait for page to load completely
-        await page.waitForTimeout(5000);
-
-        // Check page content
+        // Capture full page content for debugging
         const pageContent = await page.content();
         console.log('Page Content Length:', pageContent.length);
+        fs.writeFileSync('full_page_debug.html', pageContent);
 
-        // Optional: Save page content for debugging
-        fs.writeFileSync('debug_page_content.html', pageContent);
+        // Check for potential blocking indicators
+        const bodyText = await page.evaluate(() => document.body.innerText);
+        console.log('Body Text Preview:', bodyText.substring(0, 1000));
 
-        // Try multiple selectors in case of changes
+        // Multiple selector strategies
         const nameSelectors = [
-            'h1.top-card-layout__title.font-sans.text-lg.papabear\\:text-xl.font-bold.leading-open.text-color-text.mb-0',
+            'h1.top-card-layout__title',
             'h1[data-test-selector="profile-name"]',
-            'div.text-heading-xlarge'
+            'div.text-heading-xlarge',
+            'h1.text-heading-xlarge'
         ];
 
-        // Name Extraction
+        let name = 'N/A';
         for (const selector of nameSelectors) {
             try {
                 name = await page.$eval(selector, el => el.textContent.trim());
                 if (name) break;
-            } catch (err) {
-                console.log(`Selector ${selector} failed`);
+            } catch {}
+        }
+
+        // Enhanced error handling and logging
+        const safeExtract = async (selector, context = page, defaultValue = 'N/A') => {
+            try {
+                return await context.$eval(selector, el => el.textContent.trim());
+            } catch {
+                console.log(`Selector failed: ${selector}`);
+                return defaultValue;
             }
-        }
+        };
 
-        // Similar approach for other extractions
-        try {
-            headline = await page.$eval('h2.top-card-layout__headline.break-words.font-sans.text-md.leading-open.text-color-text', 
-                el => el.textContent.trim());
-        } catch (err) {
-            console.log('Headline extraction failed');
-        }
+        // Headline extraction
+        const headline = await safeExtract('h2.top-card-layout__headline');
+        const location = await safeExtract('div.profile-info-subheader div.not-first-middot > span');
 
-        // Location Extraction
-        try {
-            location = await page.$eval('div.profile-info-subheader div.not-first-middot > span', 
-                el => el.textContent.trim());
-        } catch (err) {
-            console.log('Location extraction failed');
-        }
+        // Log extracted basic info
+        console.log('Extracted Profile Info:');
+        console.log('Name:', name);
+        console.log('Headline:', headline);
+        console.log('Location:', location);
 
-        // About Section Extraction
-        try {
-            about = await page.$$eval('section.core-section-container.core-section-container--with-border.border-b-1.border-solid.border-color-border-faint.py-4.pp-section.summary p', 
-                elements => elements.map(el => el.textContent.trim()).join(' '));
-        } catch (err) {
-            console.log('About section extraction failed');
-        }
-
-        // Experience Extraction
-        try {
-            experience = await page.$$eval('section[data-section="experience"] ul.experience__list li', elements => 
-                elements.map(el => {
-                    const title = el.querySelector('.experience-item__title')?.textContent.trim() || 'N/A';
-                    const company = el.querySelector('.experience-item__subtitle')?.textContent.trim() || 'N/A';
-                    const dateRange = el.querySelector('.date-range time')?.textContent.trim() || 'N/A';
-                    const duration = el.querySelector('.date-range .before\\:middot')?.textContent.trim() || '';
-                    const location = el.querySelector('.experience-item__meta-item:nth-of-type(2)')?.textContent.trim() || 'N/A';
-
-                    return `${title}\n${company}\n${dateRange} (${duration})\n${location}`;
-                }).join('\n\n'));
-        } catch (err) {
-            console.log('Experience extraction failed');
-        }
-
-        // Similar error-handled extraction for other sections...
-        
         await browser.close();
 
         return {
             'Name': name,
-            'HeadLine': headline,
+            'Headline': headline,
             'Location': location,
-            'About': about,
-            'Experience': experience,
-            // Add other sections similarly
+            'ProfileLink': profileLink
         };
+
     } catch (error) {
-        console.error('Comprehensive Error Logging:');
+        console.error('Comprehensive Extraction Error:');
         console.error('Error Message:', error.message);
         console.error('Error Stack:', error.stack);
         
-        // Optional: Save error details
-        fs.writeFileSync('debug_error_log.txt', `Error on ${profileLink}\n${error.message}\n${error.stack}`);
-        
+        // Save detailed error log
+        fs.writeFileSync(`debug_error_${Date.now()}.log`, 
+            `Profile: ${profileLink}\n` +
+            `Error Message: ${error.message}\n` +
+            `Error Stack: ${error.stack}`
+        );
+
         await browser.close();
         return null;
     }
@@ -155,54 +175,45 @@ async function getProfileData(profileLink) {
 
         let result = {};
 
-        // Process each URL with enhanced error handling
+        // Process URLs with extensive error handling
         for (const [index, url] of urls.entries()) {
             console.log(`Processing URL ${index + 1}/${urls.length}: ${url}`);
             
-            let profileData = {
-                'Name': 'N/A',
-                'HeadLine':'N/A',
-                'Location': 'N/A',
-                'About': 'N/A',
-                'Experience': 'N/A'
-            };
-
             try {
-                profileData = await getProfileData(url);
-                console.log(`Processed Profile: ${profileData ? profileData.Name : 'Failed'}`);
-
-                if (profileData != null) {
-                    result[url] = profileData;
-                }
+                const profileData = await getProfileData(url);
                 
-                // Delay between requests to avoid rate limiting
+                if (profileData) {
+                    result[url] = profileData;
+                    console.log(`Successfully processed: ${profileData.Name}`);
+                } else {
+                    console.log(`Failed to process: ${url}`);
+                }
+
+                // Random delay to mimic human behavior
                 await delay(Math.floor(Math.random() * 3000) + 2000);
-            } catch (error) {
-                console.error(`Error processing ${url}:`, error);
+            } catch (processingError) {
+                console.error(`Error processing ${url}:`, processingError);
             }
         }
 
-        // Send results back to Google Script
+        // Optional: Send results back to Google Script
         try {
-            const payload = JSON.stringify({
-                'data': result,
-            });
-            const response = await fetch("https://script.google.com/macros/s/AKfycbykhEXZEg-144m8Fje9-O88N_pIch9P91xEfdeSMRQOTgdlfQBZ8zg0mw91XqTImsto/exec", {
+            const payload = JSON.stringify({ 'data': result });
+            const postResponse = await fetch("https://script.google.com/macros/s/AKfycbykhEXZEg-144m8Fje9-O88N_pIch9P91xEfdeSMRQOTgdlfQBZ8zg0mw91XqTImsto/exec", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: payload,
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            if (!postResponse.ok) {
+                throw new Error(`HTTP error! Status: ${postResponse.status}`);
             }
             console.log('Data successfully sent to Google Script');
-        } catch (error) {
-            console.error('Error sending data:', error);
+        } catch (sendError) {
+            console.error('Error sending data:', sendError);
         }
-    } catch (error) {
-        console.error('Main Process Error:', error);
+
+    } catch (mainError) {
+        console.error('Main Process Error:', mainError);
     }
 })();
