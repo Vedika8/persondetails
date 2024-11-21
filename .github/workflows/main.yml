@@ -25,5 +25,5 @@ jobs:
       working-directory: 'Linkedin Profile Scraper'
       
     - name: Run Puppeteer script
-      run: node people_profile_scraper.js
+      run: node aboutsection.js
       working-directory: 'Linkedin Profile Scraper'
