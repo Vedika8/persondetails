@@ -99,48 +99,31 @@ async function getProfileData(profileLink) {
         const location = await safeExtract('div.profile-info-subheader div.not-first-middot > span');
 
         // New: Extract About section
-        let about = 'N/A';
-        const aboutSelectors = [
-            'div[data-test-selector="about-section"]',
-            '.artdeco-card .pv-about__summary-text',
-            '#about-section .inline-show-more-text'
-        ];
-
-        for (const selector of aboutSelectors) {
-            try {
-                about = await page.$eval(selector, el => el.textContent.trim());
-                if (about && about !== 'N/A') break;
-            } catch {}
-        }
-
-        // New: Extract Work Experience
-        const experiences = await page.evaluate(() => {
-            const expElements = document.querySelectorAll(
-                '.experience-section .pvs-list__item,' +
-                '[data-section="experience"] .artdeco-list__item'
-            );
-            
-            return Array.from(expElements).map(exp => {
-                try {
-                    // Extract job title
-                    const titleEl = exp.querySelector('.mr1.t-bold');
-                    const title = titleEl ? titleEl.textContent.trim() : 'N/A';
-
-                    // Extract company
-                    const companyEl = exp.querySelector('.t-14.t-normal');
-                    const company = companyEl ? companyEl.textContent.trim() : 'N/A';
-
-                    // Extract date range
-                    const dateEl = exp.querySelectorAll('.t-14.t-normal.t-black--light')[1];
-                    const dateRange = dateEl ? dateEl.textContent.trim() : 'N/A';
-
-                    return { title, company, dateRange };
-                } catch (error) {
-                    console.log('Error extracting experience:', error);
-                    return null;
-                }
-            }).filter(exp => exp !== null);
+        let about = await page.$$eval(
+            'section.core-section-container.summary[data-section="summary"] div.core-section-container__content p', 
+            elements => {
+                console.log('About section elements found:', elements.length);
+                return elements.map(el => {
+                    console.log('About section element text:', el.textContent.trim());
+                    return el.textContent.trim();
+                }).join(' ');
+            }
+        ).catch((error) => {
+            console.log('Error extracting About section:', error);
+            return 'N/A';
         });
+        
+        // New: Extract Work Experience
+         experience = await page.$$eval('section[data-section="experience"] ul.experience__list li', elements => 
+            elements.map(el => {
+                const title = el.querySelector('.experience-item__title')?.textContent.trim() || 'N/A';
+                const company = el.querySelector('.experience-item__subtitle')?.textContent.trim() || 'N/A';
+                const dateRange = el.querySelector('.date-range time')?.textContent.trim() || 'N/A';
+                const duration = el.querySelector('.date-range .before\\:middot')?.textContent.trim() || '';
+                const location = el.querySelector('.experience-item__meta-item:nth-of-type(2)')?.textContent.trim() || 'N/A';
+
+                return `${title}\n${company}\n${dateRange} (${duration})\n${location}`;
+            }).join('\n\n')).catch(() => 'N/A');
 
         // Log extracted basic info
         console.log('Extracted Profile Info:');
