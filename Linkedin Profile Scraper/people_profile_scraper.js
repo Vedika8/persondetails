@@ -15,13 +15,11 @@ async function getProfileData(profileLink) {
                '--disable-accelerated-2d-canvas',
                '--no-first-run',
                '--no-zygote',
-               '--single-process', // Recommended for some environments
+               '--single-process',
                '--disable-gpu'
             ],
         headless: true,
         defaultViewport: null,
-        // Optional: proxy configuration
-        // browserWSEndpoint: `ws://${proxyIP}:${proxyPort}`
     });
 
     const page = (await browser.pages())[0];
@@ -56,36 +54,11 @@ async function getProfileData(profileLink) {
         // Configure extended navigation timeout
         await page.setDefaultNavigationTimeout(60000);
 
-        // Capture and log all network responses
-        const responseLogger = async (response) => {
-            try {
-                if (response.url().includes('linkedin.com')) {
-                    console.log(`Response URL: ${response.url()}`);
-                    console.log(`Response Status: ${response.status()}`);
-
-                    // Attempt to log response text for debugging
-                    try {
-                        const text = await response.text();
-                        fs.writeFileSync(`debug_response_${Date.now()}.html`, text);
-                        console.log('Response text logged');
-                    } catch (textError) {
-                        console.log('Could not read response text:', textError);
-                    }
-                }
-            } catch (logError) {
-                console.log('Error in response logging:', logError);
-            }
-        };
-        page.on('response', responseLogger);
-
         // Navigate with comprehensive options
         const response = await page.goto(profileLink, {
             waitUntil: ['load', 'domcontentloaded', 'networkidle0'],
             timeout: 60000
         });
-
-        // Comprehensive page load verification
-        console.log(`Navigation Status: ${response ? response.status() : 'No response'}`);
 
         // Advanced page readiness check
         await page.evaluate(() => {
@@ -95,16 +68,17 @@ async function getProfileData(profileLink) {
             });
         });
 
-        // Capture full page content for debugging
-        const pageContent = await page.content();
-        console.log('Page Content Length:', pageContent.length);
-        fs.writeFileSync('full_page_debug.html', pageContent);
+        // Enhanced error handling and logging
+        const safeExtract = async (selector, context = page, defaultValue = 'N/A') => {
+            try {
+                return await context.$eval(selector, el => el.textContent.trim());
+            } catch {
+                console.log(`Selector failed: ${selector}`);
+                return defaultValue;
+            }
+        };
 
-        // Check for potential blocking indicators
-        const bodyText = await page.evaluate(() => document.body.innerText);
-        console.log('Body Text Preview:', bodyText.substring(0, 1000));
-
-        // Multiple selector strategies
+        // Multiple selector strategies for name
         const nameSelectors = [
             'h1.top-card-layout__title',
             'h1[data-test-selector="profile-name"]',
@@ -120,25 +94,61 @@ async function getProfileData(profileLink) {
             } catch {}
         }
 
-        // Enhanced error handling and logging
-        const safeExtract = async (selector, context = page, defaultValue = 'N/A') => {
-            try {
-                return await context.$eval(selector, el => el.textContent.trim());
-            } catch {
-                console.log(`Selector failed: ${selector}`);
-                return defaultValue;
-            }
-        };
-
         // Headline extraction
         const headline = await safeExtract('h2.top-card-layout__headline');
         const location = await safeExtract('div.profile-info-subheader div.not-first-middot > span');
+
+        // New: Extract About section
+        let about = 'N/A';
+        const aboutSelectors = [
+            'div[data-test-selector="about-section"]',
+            '.artdeco-card .pv-about__summary-text',
+            '#about-section .inline-show-more-text'
+        ];
+
+        for (const selector of aboutSelectors) {
+            try {
+                about = await page.$eval(selector, el => el.textContent.trim());
+                if (about && about !== 'N/A') break;
+            } catch {}
+        }
+
+        // New: Extract Work Experience
+        const experiences = await page.evaluate(() => {
+            const expElements = document.querySelectorAll(
+                '.experience-section .pvs-list__item,' +
+                '[data-section="experience"] .artdeco-list__item'
+            );
+            
+            return Array.from(expElements).map(exp => {
+                try {
+                    // Extract job title
+                    const titleEl = exp.querySelector('.mr1.t-bold');
+                    const title = titleEl ? titleEl.textContent.trim() : 'N/A';
+
+                    // Extract company
+                    const companyEl = exp.querySelector('.t-14.t-normal');
+                    const company = companyEl ? companyEl.textContent.trim() : 'N/A';
+
+                    // Extract date range
+                    const dateEl = exp.querySelectorAll('.t-14.t-normal.t-black--light')[1];
+                    const dateRange = dateEl ? dateEl.textContent.trim() : 'N/A';
+
+                    return { title, company, dateRange };
+                } catch (error) {
+                    console.log('Error extracting experience:', error);
+                    return null;
+                }
+            }).filter(exp => exp !== null);
+        });
 
         // Log extracted basic info
         console.log('Extracted Profile Info:');
         console.log('Name:', name);
         console.log('Headline:', headline);
         console.log('Location:', location);
+        console.log('About:', about);
+        console.log('Experiences:', experiences);
 
         await browser.close();
 
@@ -146,6 +156,8 @@ async function getProfileData(profileLink) {
             'Name': name,
             'Headline': headline,
             'Location': location,
+            'About': about,
+            'Experiences': experiences,
             'ProfileLink': profileLink
         };
 
