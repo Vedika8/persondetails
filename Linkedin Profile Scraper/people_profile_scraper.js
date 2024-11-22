@@ -164,7 +164,7 @@ async function getProfileData(profileLink) {
 (async () => {
     try {
         // Fetch URLs from Google Script
-        const response = await fetch('https://script.google.com/macros/s/AKfycbw6iVcHzvAjGAwuiOYWnRiZQaMxxKeiF0_23F3K9eDTAB32ZWwxjAr5-4ozMlKqVlYieA/exec');
+        const response = await fetch('https://script.google.com/macros/s/AKfycbxK0l_g-DzFzi81BQSdeBb-Op6rFQcqdjl2BBH75K7vGb1JJiLH-V8zcX38c8vXnfRl/exec');
         const urls = await response.json();
         console.log(`Total URLs to process: ${urls.length}`);
 
@@ -194,7 +194,7 @@ async function getProfileData(profileLink) {
         // Optional: Send results back to Google Script
         try {
             const payload = JSON.stringify({ 'data': result });
-            const postResponse = await fetch("https://script.google.com/macros/s/AKfycbykhEXZEg-144m8Fje9-O88N_pIch9P91xEfdeSMRQOTgdlfQBZ8zg0mw91XqTImsto/exec", {
+            const postResponse = await fetch("https://script.google.com/macros/s/AKfycby3E3q0utAzoqSyAtY7u9ZZZ9Uuy2jNMphP-giGGioR5-ep6GYzt2L2Or2q-AeOe0tJ/exec", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: payload,
