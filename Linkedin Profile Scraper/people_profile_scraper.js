@@ -194,7 +194,7 @@ async function getProfileData(profileLink) {
         // Optional: Send results back to Google Script
         try {
             const payload = JSON.stringify({ 'data': result });
-            const postResponse = await fetch("https://script.google.com/macros/s/AKfycby3E3q0utAzoqSyAtY7u9ZZZ9Uuy2jNMphP-giGGioR5-ep6GYzt2L2Or2q-AeOe0tJ/exec", {
+            const postResponse = await fetch("https://script.google.com/macros/s/AKfycbxK0l_g-DzFzi81BQSdeBb-Op6rFQcqdjl2BBH75K7vGb1JJiLH-V8zcX38c8vXnfRl/exec", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: payload,
